@@ -1,9 +1,15 @@
-from fastapi import FastAPI, Depends, HTTPException
+from fastapi import FastAPI, Depends, HTTPException, Header
 from sqlalchemy import create_engine, Column, Integer, String, Boolean, Float, Text
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, Session
 import os
 
+API_TOKEN = os.getenv("API_TOKEN")
+
+def verify_token(authorization: str = Header(None)):
+    if authorization != f"Bearer {API_TOKEN}":
+        raise HTTPException(status_code=401, detail="Unauthorized")
+        
 # ========================
 # Database setup
 # ========================
@@ -70,7 +76,15 @@ def get_kpi_by_fungsi(fungsi_slug: str, db: Session = Depends(get_db)):
 
 # Add KPI update
 @app.post("/kpi/update")
-def add_kpi_update(kpi_id: int, fungsi_slug: str, period: str, value: float, link_evidence: str = None, note: str = None, db: Session = Depends(get_db)):
+def add_kpi_update(
+    kpi_id: int,
+    fungsi_slug: str,
+    period: str,
+    value: float,
+    link_evidence: str,
+    note: str,
+    token: str = Depends(verify_token)   # ⬅️ taruh dependensinya disini
+):
     update = KPIUpdates(
         kpi_id=kpi_id,
         fungsi_slug=fungsi_slug,
@@ -79,7 +93,7 @@ def add_kpi_update(kpi_id: int, fungsi_slug: str, period: str, value: float, lin
         link_evidence=link_evidence,
         note=note
     )
-    db.add(update)
-    db.commit()
-    db.refresh(update)
-    return {"status": "success", "data": update}
+    # simpan ke DB
+    session.add(update)
+    session.commit()
+    return {"message": "KPI update berhasil"}
