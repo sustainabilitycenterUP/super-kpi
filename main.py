@@ -3,6 +3,8 @@ from sqlalchemy import create_engine, Column, Integer, String, Boolean, Float, T
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, Session
 import os
+from datetime import datetime
+from fastapi import Path
 
 API_TOKEN = os.getenv("API_TOKEN")
 
@@ -38,10 +40,14 @@ class KPIUpdates(Base):
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
     kpi_id = Column(Integer)
     fungsi_slug = Column(String, index=True)
-    period = Column(String)
-    value = Column(Float)
-    link_evidence = Column(Text)
-    note = Column(Text)
+    period = Column(String)  # format yyyy-mm
+    value = Column(String)   # biar fleksibel, sesuai tabel
+    link_evidence = Column(String)
+    note = Column(String)
+    status = Column(String, default="submitted")  # submitted / approved / rejected
+    reviewed_by = Column(String, nullable=True)
+    reviewed_at = Column(String, nullable=True)
+
 
 # ========================
 # FastAPI init
@@ -97,3 +103,26 @@ def add_kpi_update(
     session.add(update)
     session.commit()
     return {"message": "KPI update berhasil"}
+
+# Review KPI update (approve/reject)
+@app.post("/kpi/review/{update_id}")
+def review_kpi_update(
+    update_id: int = Path(..., description="ID dari update yang mau direview"),
+    status: str = "approved",   # "approved" atau "rejected"
+    reviewed_by: str = "manager",
+    db: Session = Depends(get_db),
+    token: str = Depends(verify_token)   # tetap pakai token biar aman
+):
+    update = db.query(KPIUpdates).filter(KPIUpdates.id == update_id).first()
+    if not update:
+        raise HTTPException(status_code=404, detail="KPI update tidak ditemukan")
+
+    if status not in ["approved", "rejected"]:
+        raise HTTPException(status_code=400, detail="Status harus 'approved' atau 'rejected'")
+
+    update.status = status
+    update.reviewed_by = reviewed_by
+    update.reviewed_at = datetime.utcnow().isoformat()
+
+    db.commit()
+    return {"message": f"KPI update {update_id} berhasil di-{status}"}
