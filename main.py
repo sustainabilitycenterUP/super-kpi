@@ -109,3 +109,10 @@ def add_kpi_update(
 def get_kpi_updates_by_fungsi(fungsi_slug: str, db: Session = Depends(get_db)):
     updates = db.query(KPIUpdates).filter(KPIUpdates.fungsi_slug == fungsi_slug).all()
     return updates
+
+# Get KPI master with detail per fungsi
+@app.get("/kpi_master/{fungsi_slug}")
+def get_kpi_master_by_fungsi(fungsi_slug: str, db: Session = Depends(get_db)):
+    return db.query(KPIMaster).filter(KPIMaster.fungsi_slug == fungsi_slug).all()
+
+
