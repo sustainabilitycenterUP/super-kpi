@@ -1,10 +1,9 @@
-from fastapi import FastAPI, Depends, HTTPException, Header
-from sqlalchemy import create_engine, Column, Integer, String, Boolean, Float, Text
+from fastapi import FastAPI, Depends, HTTPException, Header, Path
+from sqlalchemy import create_engine, Column, Integer, String, Boolean, Float
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, Session
 import os
 from datetime import datetime
-from fastapi import Path
 
 API_TOKEN = os.getenv("API_TOKEN")
 
@@ -31,7 +30,7 @@ class KPIMaster(Base):
     iku = Column(String)
     program_prioritas = Column(String)
     bobot = Column(Float)
-    target = Column(Float)
+    target = Column(String)
     unit = Column(String)
     is_active = Column(Boolean)
 
@@ -47,7 +46,6 @@ class KPIUpdates(Base):
     status = Column(String, default="submitted")  # submitted / approved / rejected
     reviewed_by = Column(String, nullable=True)
     reviewed_at = Column(String, nullable=True)
-
 
 # ========================
 # FastAPI init
@@ -86,10 +84,11 @@ def add_kpi_update(
     kpi_id: int,
     fungsi_slug: str,
     period: str,
-    value: float,
+    value: str,
     link_evidence: str,
     note: str,
-    token: str = Depends(verify_token)   # ⬅️ taruh dependensinya disini
+    db: Session = Depends(get_db),
+    token: str = Depends(verify_token)   # ⬅️ tetap pakai token biar aman
 ):
     update = KPIUpdates(
         kpi_id=kpi_id,
@@ -97,32 +96,16 @@ def add_kpi_update(
         period=period,
         value=value,
         link_evidence=link_evidence,
-        note=note
+        note=note,
+        status="submitted"
     )
-    # simpan ke DB
-    session.add(update)
-    session.commit()
-    return {"message": "KPI update berhasil"}
-
-# Review KPI update (approve/reject)
-@app.post("/kpi/review/{update_id}")
-def review_kpi_update(
-    update_id: int = Path(..., description="ID dari update yang mau direview"),
-    status: str = "approved",   # "approved" atau "rejected"
-    reviewed_by: str = "manager",
-    db: Session = Depends(get_db),
-    token: str = Depends(verify_token)   # tetap pakai token biar aman
-):
-    update = db.query(KPIUpdates).filter(KPIUpdates.id == update_id).first()
-    if not update:
-        raise HTTPException(status_code=404, detail="KPI update tidak ditemukan")
-
-    if status not in ["approved", "rejected"]:
-        raise HTTPException(status_code=400, detail="Status harus 'approved' atau 'rejected'")
-
-    update.status = status
-    update.reviewed_by = reviewed_by
-    update.reviewed_at = datetime.utcnow().isoformat()
-
+    db.add(update)
     db.commit()
-    return {"message": f"KPI update {update_id} berhasil di-{status}"}
+    db.refresh(update)
+    return {"message": "KPI update berhasil", "id": update.id, "status": update.status}
+
+# Get KPI updates by fungsi
+@app.get("/kpi/updates/{fungsi_slug}")
+def get_kpi_updates_by_fungsi(fungsi_slug: str, db: Session = Depends(get_db)):
+    updates = db.query(KPIUpdates).filter(KPIUpdates.fungsi_slug == fungsi_slug).all()
+    return updates
