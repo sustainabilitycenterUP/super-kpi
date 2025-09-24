@@ -1,10 +1,13 @@
-from fastapi import FastAPI, Depends, HTTPException, Header, Path
+from fastapi import FastAPI, Depends, HTTPException, Header
+from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import create_engine, Column, Integer, String, Boolean, Float
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, Session
 import os
-from datetime import datetime
 
+# ========================
+# Security
+# ========================
 API_TOKEN = os.getenv("API_TOKEN")
 
 def verify_token(authorization: str = Header(None)):
@@ -51,6 +54,19 @@ class KPIUpdates(Base):
 # FastAPI init
 # ========================
 app = FastAPI()
+
+# CORS config (khusus domain WordPress kamu)
+origins = [
+    "https://super.universitaspertamina.ac.id",
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,          # bisa juga ["*"] untuk tes
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # Dependency DB session
 def get_db():
