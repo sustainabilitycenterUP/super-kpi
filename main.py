@@ -66,6 +66,16 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+@app.middleware("http")
+async def log_requests(request, call_next):
+    print(f"➡️ {request.method} {request.url}")
+    print(f"Headers: {dict(request.headers)}")
+    body = await request.body()
+    print(f"Body: {body}")
+    response = await call_next(request)
+    print(f"⬅️ Status: {response.status_code}")
+    return response
+    
 # DB session dep
 def get_db():
     db = SessionLocal()
@@ -143,3 +153,4 @@ def get_kpi_updates_by_fungsi(fungsi_slug: str, db: Session = Depends(get_db)):
 @app.get("/kpi_master/{fungsi_slug}")
 def get_kpi_master_by_fungsi(fungsi_slug: str, db: Session = Depends(get_db)):
     return db.query(KPIMaster).filter(KPIMaster.fungsi_slug == fungsi_slug).all()
+
