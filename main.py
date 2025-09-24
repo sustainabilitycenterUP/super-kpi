@@ -7,6 +7,7 @@ from sqlalchemy.orm import sessionmaker, Session
 import os
 from datetime import datetime
 
+
 # ========================
 # Config
 # ========================
@@ -55,13 +56,21 @@ class KPIUpdates(Base):
 app = FastAPI()
 
 # Aktifkan CORS
+# app.add_middleware(
+#     CORSMiddleware,
+#     allow_origins=["https://super.universitaspertamina.ac.id"],  # ganti * buat testing
+#     allow_credentials=True,
+#     allow_methods=["*"],
+#     allow_headers=["*"],
+# )
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://super.universitaspertamina.ac.id"],  # ganti * buat testing
+    allow_origins=["*"],   # sementara biar lolos dulu
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
 
 # DB session dep
 def get_db():
@@ -131,3 +140,4 @@ def get_kpi_updates_by_fungsi(fungsi_slug: str, db: Session = Depends(get_db)):
 @app.get("/kpi_master/{fungsi_slug}")
 def get_kpi_master_by_fungsi(fungsi_slug: str, db: Session = Depends(get_db)):
     return db.query(KPIMaster).filter(KPIMaster.fungsi_slug == fungsi_slug).all()
+
